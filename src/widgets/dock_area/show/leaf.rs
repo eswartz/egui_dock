@@ -768,42 +768,39 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
             // from node to node.
             let id = self.id.with(tab_viewer.id(tab));
             ui.ctx().check_for_id_clash(id, body_rect, "a tab with id");
-            let ui = &mut Ui::new(
-                ui.ctx().clone(),
-                ui.layer_id(),
-                id,
-                UiBuilder::new().max_rect(body_rect),
-            );
-            ui.set_clip_rect(Rect::from_min_max(ui.cursor().min, ui.clip_rect().max));
 
-            // Use initial spacing for ui.
-            ui.spacing_mut().item_spacing = spacing;
+            ui.allocate_new_ui(UiBuilder::new().layer_id(ui.layer_id()).max_rect(body_rect), |ui| {
+                ui.set_clip_rect(Rect::from_min_max(ui.cursor().min, ui.clip_rect().max));
 
-            // Offset the background rectangle up to hide the top border behind the clip rect.
-            // To avoid anti-aliasing lines when the stroke width is not divisible by two, we
-            // need to calculate the effective anti-aliased stroke width.
-            let effective_stroke_width = (tabs_style.tab_body.stroke.width / 2.0).ceil() * 2.0;
-            let tab_body_rect = Rect::from_min_max(
-                ui.clip_rect().min - vec2(0.0, effective_stroke_width),
-                ui.clip_rect().max,
-            );
-            ui.painter().rect_stroke(
-                rect_stroke_box(tab_body_rect, tabs_style.tab_body.stroke.width),
-                tabs_style.tab_body.rounding,
-                tabs_style.tab_body.stroke,
-            );
+                // Use initial spacing for ui.
+                ui.spacing_mut().item_spacing = spacing;
 
-            ScrollArea::new(tab_viewer.scroll_bars(tab)).show(ui, |ui| {
-                Frame::none()
-                    .inner_margin(tabs_style.tab_body.inner_margin)
-                    .show(ui, |ui| {
-                        if fade_factor != 1.0 {
-                            fade_visuals(ui.visuals_mut(), fade_factor);
-                        }
-                        let available_rect = ui.available_rect_before_wrap();
-                        ui.expand_to_include_rect(available_rect);
-                        tab_viewer.ui(ui, tab);
-                    });
+                // Offset the background rectangle up to hide the top border behind the clip rect.
+                // To avoid anti-aliasing lines when the stroke width is not divisible by two, we
+                // need to calculate the effective anti-aliased stroke width.
+                let effective_stroke_width = (tabs_style.tab_body.stroke.width / 2.0).ceil() * 2.0;
+                let tab_body_rect = Rect::from_min_max(
+                    ui.clip_rect().min - vec2(0.0, effective_stroke_width),
+                    ui.clip_rect().max,
+                );
+                ui.painter().rect_stroke(
+                    rect_stroke_box(tab_body_rect, tabs_style.tab_body.stroke.width),
+                    tabs_style.tab_body.rounding,
+                    tabs_style.tab_body.stroke,
+                );
+
+                ScrollArea::new(tab_viewer.scroll_bars(tab)).show(ui, |ui| {
+                    Frame::none()
+                        .inner_margin(tabs_style.tab_body.inner_margin)
+                        .show(ui, |ui| {
+                            if fade_factor != 1.0 {
+                                fade_visuals(ui.visuals_mut(), fade_factor);
+                            }
+                            let available_rect = ui.available_rect_before_wrap();
+                            ui.expand_to_include_rect(available_rect);
+                            tab_viewer.ui(ui, tab);
+                        });
+                });
             });
         }
 
