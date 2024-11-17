@@ -125,9 +125,16 @@ impl<Tab> DockState<Tab> {
 
     /// Returns the viewport [`Rect`] and the `Tab` inside the focused leaf node or `None` if no node is in focus.
     #[inline]
-    pub fn find_active_focused(&mut self) -> Option<(Rect, &mut Tab)> {
+    pub fn find_active_focused(&self) -> Option<(Rect, &Tab)> {
         self.focused_surface
             .and_then(|surface| self[surface].find_active_focused())
+    }
+
+    /// Returns the viewport [`Rect`] and the `Tab` inside the focused leaf node or `None` if no node is in focus.
+    #[inline]
+    pub fn find_active_focused_mut(&mut self) -> Option<(Rect, &mut Tab)> {
+        self.focused_surface
+            .and_then(|surface| self[surface].find_active_focused_mut())
     }
 
     /// Get a mutable borrow to the raw surface from a surface index.

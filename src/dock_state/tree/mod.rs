@@ -556,7 +556,21 @@ impl<Tab> Tree<Tab> {
 
     /// Returns the viewport [`Rect`] and the `Tab` inside the focused leaf node or [`None`] if it does not exist.
     #[inline]
-    pub fn find_active_focused(&mut self) -> Option<(Rect, &mut Tab)> {
+    pub fn find_active_focused(&self) -> Option<(Rect, &Tab)> {
+        match self.focused_node.and_then(|idx| self.nodes.get(idx.0)) {
+            Some(Node::Leaf {
+                tabs,
+                active,
+                viewport,
+                ..
+            }) => tabs.get(active.0).map(|tab| (*viewport, tab)),
+            _ => None,
+        }
+    }
+
+    /// Returns the viewport [`Rect`] and the `Tab` inside the focused leaf node or [`None`] if it does not exist.
+    #[inline]
+    pub fn find_active_focused_mut(&mut self) -> Option<(Rect, &mut Tab)> {
         match self.focused_node.and_then(|idx| self.nodes.get_mut(idx.0)) {
             Some(Node::Leaf(leaf)) => leaf.active_focused(),
             _ => None,
