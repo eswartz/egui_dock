@@ -262,6 +262,7 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
             self.show_root_surface_inside(ui, tab_viewer, state);
         } else {
             self.show_window_surface(ui, surf_index, tab_viewer, state, fade_style);
+            // self.show_window_viewport(ui, surf_index, tab_viewer, state, fade_style);
         }
     }
 

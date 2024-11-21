@@ -94,4 +94,10 @@ impl WindowState {
         self.new = false;
         (window_constructor, new)
     }
+
+    pub(crate) fn create_viewport(&mut self) -> (bool, Option<Pos2>, Option<Vec2>) {
+        let new = self.new;
+        self.new = false;
+        (new, self.next_position(), self.next_size())
+    }
 }

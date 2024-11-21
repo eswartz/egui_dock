@@ -119,6 +119,145 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
         }
     }
 
+    pub(super) fn show_window_viewport(
+        &mut self,
+        ui: &Ui,
+        surf_index: SurfaceIndex,
+        tab_viewer: &mut impl TabViewer<Tab = Tab>,
+        state: &mut State,
+        fade_style: Option<(&Style, f32, SurfaceIndex)>,
+    ) {
+        let id: egui::Id = format!("window {surf_index:?}").into();
+        let bounds = self.window_bounds.unwrap();
+        let mut open = true;
+        let (new, position, size) = self
+            .dock_state
+            .get_window_state_mut(surf_index)
+            .unwrap()
+            .create_viewport();
+
+        //calculate fading of the window (if any)
+        let (fade_factor, fade_style) = match fade_style {
+            Some((style, factor, surface_index)) => {
+                if surface_index == surf_index {
+                    (1.0, None)
+                } else {
+                    (factor, Some((style, factor)))
+                }
+            }
+            None => (1.0, None),
+        };
+
+        // Get galley of currently selected node as a window title
+        let (name, title) = {
+            let node_id = self.dock_state[surf_index]
+                .focused_leaf()
+                .unwrap_or_else(|| {
+                    for node_index in self.dock_state[surf_index].breadth_first_index_iter() {
+                        if self.dock_state[surf_index][node_index].is_leaf() {
+                            return node_index;
+                        }
+                    }
+                    unreachable!("a window surface should never be empty")
+                });
+            let Node::Leaf { tabs, active, .. } = &mut self.dock_state[surf_index][node_id] else {
+                unreachable!()
+            };
+
+            let title = tab_viewer.title(&mut tabs[active.0]);
+            (
+                title.clone().text().to_string(),
+                title
+                .color(ui.visuals().widgets.noninteractive.fg_stroke.color)
+                .into_galley(ui, Some(TextWrapMode::Extend), 0.0, TextStyle::Button)
+            )
+        };
+
+        // Fade window frame (if necessary)
+        let mut frame = Frame::window(ui.style());
+        if fade_factor != 1.0 {
+            frame.fill = frame.fill.linear_multiply(fade_factor);
+            frame.stroke.color = frame.stroke.color.linear_multiply(fade_factor);
+            frame.shadow.color = frame.shadow.color.linear_multiply(fade_factor);
+        }
+
+        let mut viewport_builder = egui::ViewportBuilder::default()
+            .with_title(name.clone());
+        if let Some(size) = size {
+            viewport_builder = viewport_builder.with_inner_size(size);
+        }
+        if let Some(pos) = position {
+            viewport_builder = viewport_builder.with_position(pos);
+        }
+
+        ui.ctx().show_viewport_immediate(
+            egui::ViewportId(id),
+            viewport_builder,
+            |ctx, class| {
+                let mut draw_it = |ctx, ui: &mut egui::Ui| {
+                    //fade inner ui (if necessary)
+                    if fade_factor != 1.0 {
+                        fade_visuals(ui.visuals_mut(), fade_factor);
+                    }
+
+                    let collapser_id = id.with("collapser");
+                    let collapser_state = new.then_some(true);
+                    let ch_res = self.show_window_body(
+                        ui,
+                        surf_index,
+                        tab_viewer,
+                        state,
+                        fade_style,
+                        collapser_state,
+                        collapser_id,
+                        Arc::clone(&title),
+                    );
+                    // if self.show_window_close_buttons {
+                    //     // Finds out if theres a reason for the close button to be disabled
+                    //     // by iterating over the tree and finding if theres any non-closable nodes.
+                    //     let disabled = !self.dock_state[surf_index]
+                    //         .iter_mut()
+                    //         .filter_map(|node| {
+                    //             if let Node::Leaf { tabs, .. } = node {
+                    //                 Some(
+                    //                     tabs.iter_mut()
+                    //                         .map(|tab| tab_viewer.closeable(tab))
+                    //                         .all(identity),
+                    //                 )
+                    //             } else {
+                    //                 None
+                    //             }
+                    //         })
+                    //         .all(identity);
+
+                    //     self.show_close_button(ui, &mut open, ch_res, disabled);
+                    // }
+                };
+
+
+                if class == egui::ViewportClass::Embedded {
+                    // Not a real viewport
+                    egui::Window::new(name.clone())
+                        .id(id)
+                        .frame(frame)
+                        .min_width(min_window_width(&title, ui.spacing().indent))
+                        .open(&mut open)
+                        .show(ctx, |ui| {
+                            draw_it(ctx, ui);
+                        });
+                } else {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        draw_it(ctx, ui);
+                    });
+                }
+            },
+        );
+
+        if !open {
+            self.to_remove.push(TabRemoval::Window(surf_index));
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn show_window_body(
         &mut self,
