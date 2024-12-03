@@ -539,24 +539,7 @@ impl<Tab> DockArea<'_, Tab> {
 
         rect_set_size_centered(&mut plus_rect, Vec2::splat(Style::TAB_ADD_PLUS_SIZE));
 
-        ui.painter().line_segment(
-            [plus_rect.center_top(), plus_rect.center_bottom()],
-            Stroke::new(1.0, color),
-        );
-        ui.painter().line_segment(
-            [plus_rect.right_center(), plus_rect.left_center()],
-            Stroke::new(1.0, color),
-        );
-
-        // Draw button left border.
-        ui.painter().vline(
-            rect.left(),
-            rect.y_range(),
-            Stroke::new(
-                ui.ctx().pixels_per_point().recip(),
-                style.buttons.add_tab_border_color,
-            ),
-        );
+        tab_viewer.draw_add_button(ui, style, color, rect, plus_rect);
 
         let popup_id = ui.id().with("tab_add_popup");
         if self.show_add_popup {

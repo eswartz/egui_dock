@@ -57,6 +57,31 @@ pub trait TabViewer {
         true
     }
 
+    /// Draw the button in the right-hand side of the tab viewer area.
+    ///
+    /// This requires that [`DockArea::show_add_buttons`](crate::DockArea::show_add_buttons)
+    /// is set to `true`.
+    fn draw_add_button(&mut self, ui: &mut egui::Ui, style: &crate::Style, color: egui::Color32, rect: egui::Rect, plus_rect: egui::Rect) {
+        ui.painter().line_segment(
+            [plus_rect.center_top(), plus_rect.center_bottom()],
+            egui::Stroke::new(1.0, color),
+        );
+        ui.painter().line_segment(
+            [plus_rect.right_center(), plus_rect.left_center()],
+            egui::Stroke::new(1.0, color),
+        );
+
+        // Draw button left border.
+        ui.painter().vline(
+            rect.left(),
+            rect.y_range(),
+            egui::Stroke::new(
+                ui.ctx().pixels_per_point().recip(),
+                style.buttons.add_tab_border_color,
+            ),
+        );
+    }
+
     /// This is called every frame after [`ui`](Self::ui) is called, if the `_tab` is active.
     ///
     /// Returns `true` if the tab should be forced to close, `false` otherwise.
