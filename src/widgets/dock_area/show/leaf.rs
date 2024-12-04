@@ -1137,7 +1137,7 @@ impl<Tab> DockArea<'_, Tab> {
             }
 
             // Handle user input.
-            if tabbar_response.hovered() {
+            if ui.rect_contains_pointer(tabbar_response.rect) {
                 *scroll += ui.input(|i| i.smooth_scroll_delta.y + i.smooth_scroll_delta.x);
             }
         }
