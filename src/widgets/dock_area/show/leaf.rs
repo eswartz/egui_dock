@@ -40,7 +40,7 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
         );
         let spacing = ui.spacing().item_spacing;
         ui.spacing_mut().item_spacing = Vec2::ZERO;
-        ui.set_clip_rect(rect);
+        ui.set_clip_rect(ui.clip_rect().intersect(rect));
 
         let tabbar_rect = self.tab_bar(
             ui,
@@ -121,7 +121,7 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
 
             let mut clip_rect = tabbar_outer_rect;
             clip_rect.set_width(available_width);
-            tabs_ui.set_clip_rect(clip_rect);
+            tabs_ui.set_clip_rect(tabs_ui.clip_rect().intersect(clip_rect));
 
             // Desired size for tabs in "expanded" mode.
             let prefered_width = style
