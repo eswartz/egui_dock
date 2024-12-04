@@ -620,7 +620,8 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
         tabbar_response: &Response,
         fade_style: Option<&Style>,
     ) {
-        assert_ne!(available_width, 0.0);
+        // assert_ne!(available_width, 0.0);
+        let available_width = available_width.max(1.0);
 
         let Node::Leaf { scroll, .. } = &mut self.dock_state[surface_index][node_index] else {
             unreachable!()
