@@ -1084,7 +1084,8 @@ impl<Tab> DockArea<'_, Tab> {
         tab_hovered: bool,
         fade_style: Option<&Style>,
     ) {
-        assert_ne!(available_width, 0.0);
+        // assert_ne!(available_width, 0.0);
+        let available_width = available_width.max(1.0);
 
         let leaf = self.dock_state[surface_index][node_index]
             .get_leaf_mut()
