@@ -31,7 +31,7 @@ use crate::{Node, NodeIndex, Split, TabDestination, TabIndex, TabInsert, Transla
 pub struct DockState<Tab> {
     surfaces: Vec<Surface<Tab>>,
     focused_surface: Option<SurfaceIndex>, // Part of the tree which is in focus.
-
+    pub(crate) scroll_to_tab: Option<(SurfaceIndex, NodeIndex, TabIndex)>,
     /// Contains translations of text shown in [`DockArea`](crate::DockArea).
     pub translations: Translations,
 }
@@ -68,6 +68,7 @@ impl<Tab> DockState<Tab> {
         Self {
             surfaces: vec![Surface::Main(Tree::new(tabs))],
             focused_surface: None,
+            scroll_to_tab: None,
             translations: Translations::english(),
         }
     }
@@ -521,6 +522,7 @@ impl<Tab> DockState<Tab> {
             surfaces,
             focused_surface,
             translations,
+            scroll_to_tab,
         } = self;
         let surfaces = surfaces
             .iter()
@@ -532,6 +534,7 @@ impl<Tab> DockState<Tab> {
         DockState {
             surfaces,
             focused_surface: *focused_surface,
+            scroll_to_tab: *scroll_to_tab,
             translations: translations.clone(),
         }
     }
