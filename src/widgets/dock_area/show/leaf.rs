@@ -101,6 +101,9 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
             available_width -= Style::TAB_ADD_BUTTON_SIZE;
         }
 
+        let mut si_ni_ti = self.dock_state.scroll_to_tab.take();
+        let mut tab_index_pos;
+
         let actual_width = {
             let Node::Leaf { tabs, scroll, .. } = &mut self.dock_state[surface_index][node_index]
             else {
@@ -129,7 +132,7 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
                 .fill_tab_bar
                 .then_some(available_width / (tabs.len() as f32));
 
-            self.tabs(
+            tab_index_pos = self.tabs(
                 tabs_ui,
                 state,
                 (surface_index, node_index),
@@ -171,6 +174,14 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
             tabs_ui.min_rect().width()
         };
 
+        let scroll_to_tab = si_ni_ti.as_ref().is_some_and(|(si, ni, _)| tab_index_pos.is_some() && *si == surface_index && *ni == node_index);
+
+        let mut scroll_target = if scroll_to_tab {
+            Some(tab_index_pos.unwrap().1)
+        } else {
+            None
+        };
+
         self.tab_bar_scroll(
             ui,
             state,
@@ -179,7 +190,12 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
             available_width,
             &tabbar_response,
             fade_style,
+            &mut scroll_target,
         );
+
+        if scroll_to_tab {
+            self.dock_state.scroll_to_tab = if scroll_target.is_none() { None } else { si_ni_ti };
+        }
 
         tabbar_outer_rect
     }
@@ -194,7 +210,7 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
         tabbar_outer_rect: Rect,
         preferred_width: Option<f32>,
         fade: Option<&Style>,
-    ) {
+    ) -> Option<(TabIndex, f32)> {
         assert!(self.dock_state[surface_index][node_index].is_leaf());
 
         let focused = self.dock_state.focused_leaf();
@@ -204,6 +220,8 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
                 .expect("This node must be a leaf here");
             tabs.len()
         };
+
+        let mut active_tab_index_pos = None;
 
         for tab_index in 0..tabs_len {
             let id = self
@@ -372,6 +390,12 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
                     }
                 }
 
+                if is_active {
+                    let active_pos = response.rect.left() - tabbar_outer_rect.left();
+                    let scroll_target = active_pos + response.rect.width() * tab_index.0 as f32 / tabs_len as f32;
+                    active_tab_index_pos = Some((tab_index, scroll_target));
+                }
+
                 (response, title_id)
             };
 
@@ -414,6 +438,8 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
 
             tab_viewer.on_tab_button(tab, &response);
         }
+
+        active_tab_index_pos
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -518,14 +544,14 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
             } else {
                 &tab_style.focused
             }
+        } else if response.hovered() {
+            &tab_style.hovered
         } else if active {
             if response.has_focus() {
                 &tab_style.active_with_kb_focus
             } else {
                 &tab_style.active
             }
-        } else if response.hovered() {
-            &tab_style.hovered
         } else if response.has_focus() {
             &tab_style.inactive_with_kb_focus
         } else {
@@ -619,6 +645,7 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
         available_width: f32,
         tabbar_response: &Response,
         fade_style: Option<&Style>,
+        tab_scroll_target: &mut Option<f32>,
     ) {
         // assert_ne!(available_width, 0.0);
         let available_width = available_width.max(1.0);
@@ -631,8 +658,12 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
 
         // Compare to 1.0 and not 0.0 to avoid drawing a scroll bar due
         // to floating point precision issue during tab drawing.
+        let mut had_scroll = false;
+        let mut user_driven = false;
         if overflow > 1.0 {
             if style.tab_bar.show_scroll_bar_on_overflow {
+                had_scroll = true;
+
                 // Draw scroll bar
                 let bar_height = 7.5;
                 let (scroll_bar_rect, _scroll_bar_response) = ui.allocate_exact_size(
@@ -689,7 +720,23 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
 
             // Handle user input.
             if ui.rect_contains_pointer(tabbar_response.rect) {
-                *scroll += ui.input(|i| i.smooth_scroll_delta.y + i.smooth_scroll_delta.x);
+                let delta = ui.input(|i| i.smooth_scroll_delta.y + i.smooth_scroll_delta.x);
+                *scroll += delta;
+                user_driven = delta.abs() > 1.0;
+            }
+        }
+
+        // Animate to active tab.
+        if let Some(active_pos) = tab_scroll_target.map(|x| x) {
+            if !had_scroll || user_driven {
+                *tab_scroll_target = None;
+            } else {
+                let new_scroll = -active_pos.min(available_width);
+                let anim = *scroll * 0.9 + new_scroll * 0.1;
+                if (anim - new_scroll).abs() < 1.0 {
+                    *tab_scroll_target = None;
+                }
+                *scroll = anim;
             }
         }
 
