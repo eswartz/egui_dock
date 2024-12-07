@@ -128,6 +128,9 @@ impl<Tab> DockArea<'_, Tab> {
             available_width -= Style::TAB_COLLAPSE_BUTTON_SIZE;
         }
 
+        let si_ni_ti = self.dock_state.scroll_to_tab.take();
+        let tab_index_pos;
+
         let (actual_width, tab_hovered) = {
             let leaf = self.dock_state[surface_index][node_index]
                 .get_leaf_mut()
@@ -167,7 +170,7 @@ impl<Tab> DockArea<'_, Tab> {
                 .fill_tab_bar
                 .then_some(available_width / (leaf.tabs.len() as f32));
 
-            let tab_hovered = self.tabs(
+            let (tab_hovered, tab_index_pos_out) = self.tabs(
                 tabs_ui,
                 state,
                 (surface_index, node_index),
@@ -176,6 +179,7 @@ impl<Tab> DockArea<'_, Tab> {
                 prefered_width,
                 fade_style,
             );
+            tab_index_pos = tab_index_pos_out;
 
             // Draw hline from tab end to edge of tab bar.
             let px = ui.ctx().pixels_per_point().recip();
@@ -250,6 +254,14 @@ impl<Tab> DockArea<'_, Tab> {
             (tabs_ui.min_rect().width(), tab_hovered)
         };
 
+        let scroll_to_tab = si_ni_ti.as_ref().is_some_and(|(si, ni, _)| tab_index_pos.is_some() && *si == surface_index && *ni == node_index);
+
+        let mut scroll_target = if scroll_to_tab {
+            Some(tab_index_pos.unwrap().1)
+        } else {
+            None
+        };
+
         self.tab_bar_scroll(
             ui,
             state,
@@ -260,7 +272,13 @@ impl<Tab> DockArea<'_, Tab> {
             &tabbar_response,
             tab_hovered,
             fade_style,
+            &mut scroll_target,
         );
+
+        if scroll_to_tab {
+            self.dock_state.scroll_to_tab = if scroll_target.is_none() { None } else { si_ni_ti };
+            ui.ctx().request_repaint_after(std::time::Duration::from_secs_f32(ui.input(|i| i.stable_dt)));
+        }
 
         tabbar_outer_rect
     }
@@ -275,7 +293,7 @@ impl<Tab> DockArea<'_, Tab> {
         tabbar_outer_rect: Rect,
         preferred_width: Option<f32>,
         fade: Option<&Style>,
-    ) -> bool {
+    ) -> (bool, Option<(TabIndex, f32)>) {
         let mut tab_hovered = false;
 
         assert!(self.dock_state[surface_index][node_index].is_leaf());
@@ -287,6 +305,8 @@ impl<Tab> DockArea<'_, Tab> {
                 .expect("This node must be a leaf here");
             tabs.len()
         };
+
+        let mut active_tab_index_pos = None;
 
         for tab_index in 0..tabs_len {
             let id = self
@@ -452,6 +472,12 @@ impl<Tab> DockArea<'_, Tab> {
                     }
                 }
 
+                if is_active {
+                    let active_pos = response.rect.left() - tabbar_outer_rect.left();
+                    let scroll_target = active_pos + response.rect.width() * tab_index.0 as f32 / tabs_len as f32;
+                    active_tab_index_pos = Some((tab_index, scroll_target));
+                }
+
                 (response, title_id)
             };
 
@@ -498,7 +524,7 @@ impl<Tab> DockArea<'_, Tab> {
             }
         }
 
-        tab_hovered
+        (tab_hovered, active_tab_index_pos)
     }
 
     /// Draws the tab add button.
@@ -987,14 +1013,14 @@ impl<Tab> DockArea<'_, Tab> {
             } else {
                 &tab_style.focused
             }
+        } else if response.hovered() {
+            &tab_style.hovered
         } else if active {
             if response.has_focus() {
                 &tab_style.active_with_kb_focus
             } else {
                 &tab_style.active
             }
-        } else if response.hovered() {
-            &tab_style.hovered
         } else if response.has_focus() {
             &tab_style.inactive_with_kb_focus
         } else {
@@ -1089,8 +1115,9 @@ impl<Tab> DockArea<'_, Tab> {
         available_width: f32,
         scroll_bar_width: f32,
         tabbar_response: &Response,
-        tab_hovered: bool,
+        _tab_hovered: bool,
         fade_style: Option<&Style>,
+        tab_scroll_target: &mut Option<f32>,
     ) {
         // assert_ne!(available_width, 0.0);
         let available_width = available_width.max(1.0);
@@ -1103,8 +1130,12 @@ impl<Tab> DockArea<'_, Tab> {
 
         // Compare to 1.0 and not 0.0 to avoid drawing a scroll bar due
         // to floating point precision issue during tab drawing.
+        let mut had_scroll = false;
+        let mut user_driven = false;
         if overflow > 1.0 {
             if style.tab_bar.show_scroll_bar_on_overflow {
+                had_scroll = true;
+
                 // Draw scroll bar
                 let bar_height = 7.5;
                 let (scroll_bar_rect, _scroll_bar_response) = ui.allocate_exact_size(
@@ -1162,8 +1193,25 @@ impl<Tab> DockArea<'_, Tab> {
             }
 
             // Handle user input.
-            if tabbar_response.hovered() || tab_hovered {
-                leaf.scroll += ui.input(|i| i.smooth_scroll_delta.y + i.smooth_scroll_delta.x);
+            //  if tabbar_response.hovered() || tab_hovered { // not good enough, misses scrollbar
+            if ui.rect_contains_pointer(tabbar_response.rect) {
+                let delta = ui.input(|i| i.smooth_scroll_delta.y + i.smooth_scroll_delta.x);
+                leaf.scroll += delta;
+                user_driven = delta.abs() > 1.0;
+            }
+        }
+
+        // Animate to active tab.
+        if let Some(active_pos) = tab_scroll_target.as_ref() {
+            if !had_scroll || user_driven {
+                *tab_scroll_target = None;
+            } else {
+                let new_scroll = -active_pos.min(available_width);
+                let anim = leaf.scroll * 0.9 + new_scroll * 0.1;
+                if (anim - new_scroll).abs() < 1.0 {
+                    *tab_scroll_target = None;
+                }
+                leaf.scroll = anim;
             }
         }
 
