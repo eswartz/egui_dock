@@ -561,11 +561,13 @@ impl<Tab> DockArea<'_, Tab> {
         tab_viewer.draw_add_button(ui, style, color, rect, plus_rect);
 
         let popup_id = ui.id().with("tab_add_popup");
+        let mut to_close = false;
         popup_under_widget(ui, popup_id, &response, |ui| {
             tab_viewer.add_popup(ui, surface_index, node_index);
+            to_close = ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
         });
 
-        if response.clicked() {
+        if response.clicked() || to_close {
             if self.show_add_popup {
                 ui.memory_mut(|mem| mem.toggle_popup(popup_id));
             }
