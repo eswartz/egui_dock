@@ -175,7 +175,7 @@ impl<Tab> DockArea<'_, Tab> {
             let style = fade_style.unwrap_or_else(|| self.style.as_ref().unwrap());
 
             ui.painter().hline(
-                tabs_ui.min_rect().right().min(clip_rect.right())..=tabbar_outer_rect.right(),
+                tabs_ui.min_rect().right().min(clip_rect.left() + available_width)..=tabbar_outer_rect.right(),
                 tabbar_outer_rect.bottom() - px,
                 (px, style.tab_bar.hline_color),
             );
@@ -184,7 +184,7 @@ impl<Tab> DockArea<'_, Tab> {
             if self.show_add_buttons {
                 let offset = match style.buttons.add_tab_align {
                     TabAddAlign::Left => {
-                        (clip_rect.width() - tabs_ui.min_rect().width()).at_least(0.0)
+                        (available_width - tabs_ui.min_rect().width()).at_least(0.0)
                     }
                     TabAddAlign::Right => 0.0,
                 } + if self.show_leaf_close_all_buttons {
@@ -530,8 +530,8 @@ impl<Tab> DockArea<'_, Tab> {
         fade_style: Option<&Style>,
     ) {
         let rect = Rect::from_min_max(
-            tabbar_outer_rect.right_top() - vec2(Style::TAB_ADD_BUTTON_SIZE + offset, 0.0),
-            tabbar_outer_rect.right_bottom() - vec2(offset, 0.0),
+            tabbar_outer_rect.right_top() - vec2(Style::TAB_ADD_BUTTON_SIZE + offset, -2.0),
+            tabbar_outer_rect.right_bottom() - vec2(offset + 2.0, 2.0),
         );
 
         let ui = &mut ui.new_child(
@@ -551,6 +551,8 @@ impl<Tab> DockArea<'_, Tab> {
                 .rect_filled(rect, Rounding::ZERO, style.buttons.add_tab_bg_fill);
             style.buttons.add_tab_active_color
         } else {
+            ui.painter()
+                .rect_filled(rect, Rounding::ZERO, style.tab_bar.bg_fill);
             style.buttons.add_tab_color
         };
 
