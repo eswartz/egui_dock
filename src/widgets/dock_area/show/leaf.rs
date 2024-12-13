@@ -531,7 +531,7 @@ impl<Tab> DockArea<'_, Tab> {
     ) {
         let rect = Rect::from_min_max(
             tabbar_outer_rect.right_top() - vec2(Style::TAB_ADD_BUTTON_SIZE + offset, 0.0),
-            tabbar_outer_rect.right_bottom() - vec2(offset, 2.0),
+            tabbar_outer_rect.right_bottom() - vec2(offset, 0.0),
         );
 
         let ui = &mut ui.new_child(
@@ -558,7 +558,10 @@ impl<Tab> DockArea<'_, Tab> {
 
         rect_set_size_centered(&mut plus_rect, Vec2::splat(Style::TAB_ADD_PLUS_SIZE));
 
+        let prev_clip = ui.clip_rect();
+        ui.set_clip_rect(prev_clip.intersect(plus_rect));
         tab_viewer.draw_add_button(ui, style, color, rect, plus_rect);
+        ui.set_clip_rect(prev_clip);
 
         let popup_id = ui.id().with("tab_add_popup");
         let mut to_close = false;
