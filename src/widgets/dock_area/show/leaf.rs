@@ -29,9 +29,12 @@ impl<'tree, Tab> DockArea<'tree, Tab> {
     ) {
         assert!(self.dock_state[surface_index][node_index].is_leaf());
 
-        let rect = self.dock_state[surface_index][node_index]
+        let mut rect = self.dock_state[surface_index][node_index]
             .rect()
             .expect("This node must be a leaf");
+        if !rect.is_finite() {
+            rect = ui.available_rect_before_wrap();
+        }
         let ui = &mut ui.new_child(
             UiBuilder::new()
                 .max_rect(rect)
