@@ -514,8 +514,8 @@ impl<Tab> DockArea<'_, Tab> {
         fade_style: Option<&Style>,
     ) {
         let rect = Rect::from_min_max(
-            tabbar_outer_rect.right_top() - vec2(Style::TAB_ADD_BUTTON_SIZE + offset, -2.0),
-            tabbar_outer_rect.right_bottom() - vec2(offset + 2.0, 2.0),
+            tabbar_outer_rect.right_top() - vec2(Style::TAB_ADD_BUTTON_SIZE + offset, 0.0),
+            tabbar_outer_rect.right_bottom() - vec2(offset,  0.0) - ui.spacing().button_padding,
         );
 
         let ui = &mut ui.new_child(
