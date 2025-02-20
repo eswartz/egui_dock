@@ -1,3 +1,4 @@
+use egui::{Rounding, UiKind};
 use egui::{
     emath::TSTransform, epaint::TextShape, lerp, pos2, vec2, Align, Align2, Button, Color32,
     CornerRadius, CursorIcon, Frame, Id, Key, LayerId, Layout, NumExt, Order, Rect, Response,
@@ -427,7 +428,7 @@ impl<Tab> DockArea<'_, Tab> {
                             && ui.add(eject_button).clicked()
                         {
                             self.to_detach.push((surface_index, node_index, tab_index));
-                            ui.close_menu();
+                            ui.close_kind(UiKind::Menu);
                         }
                         if show_close_button && ui.add(close_button).clicked() {
                             if tab_viewer.on_close(tab) {
@@ -437,7 +438,7 @@ impl<Tab> DockArea<'_, Tab> {
                                 *active = tab_index;
                                 self.new_focused = Some((surface_index, node_index));
                             }
-                            ui.close_menu();
+                            ui.close_kind(UiKind::Menu);
                         }
                     });
                 }
@@ -555,7 +556,7 @@ impl<Tab> DockArea<'_, Tab> {
             style.buttons.add_tab_active_color
         } else {
             ui.painter()
-                .rect_filled(rect, Rounding::ZERO, style.tab_bar.bg_fill);
+                .rect_filled(rect, CornerRadius::ZERO, style.tab_bar.bg_fill);
             style.buttons.add_tab_color
         };
 
@@ -801,7 +802,7 @@ impl<Tab> DockArea<'_, Tab> {
                     .button(&self.dock_state.translations.leaf.minimize_button)
                     .clicked()
                 {
-                    ui.close_menu();
+                    ui.close_kind(UiKind::Menu);
                     self.window_toggle_minimized(surface_index);
                 }
             });
