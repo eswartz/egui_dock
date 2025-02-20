@@ -536,7 +536,7 @@ impl<Tab> DockArea<'_, Tab> {
             style.buttons.add_tab_active_color
         } else {
             ui.painter()
-                .rect_filled(rect, Rounding::ZERO, style.tab_bar.bg_fill);
+                .rect_filled(rect, CornerRadius::ZERO, style.tab_bar.bg_fill);
             style.buttons.add_tab_color
         };
 
