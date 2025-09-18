@@ -511,7 +511,11 @@ impl<Tab> DockArea<'_, Tab> {
                 self.new_focused = Some((surface_index, node_index));
             }
 
-            tab_viewer.on_tab_button(tab, &response);
+            {
+                let mut tab_response = response.clone();
+                tab_response.rect = response.rect.intersect(tabs_ui.clip_rect());
+                tab_viewer.on_tab_button(tab, &tab_response);
+            }
 
             if self.show_close_buttons && tab_viewer.is_closeable(tab) && response.middle_clicked()
             {
